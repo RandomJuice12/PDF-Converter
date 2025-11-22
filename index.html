@@ -3,91 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PDF Converter</title>
+  <title>Image to PDF Converter</title>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
-    body{font-family:Arial,sans-serif;background:#f0f2f5;padding:20px;text-align:center;}
-    .container{max-width:800px;margin:auto;background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
-    #drop-area{background:#f8f9fa;border:3px dashed #007bff;padding:60px;border-radius:12px;cursor:pointer;transition:0.3s;}
-    #drop-area.dragover{background:#e3f2fd;border-color:#0056b3;}
-    #preview{margin-top:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
-    img{max-width:100%;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-    button{margin-top:20px;padding:12px 30px;font-size:16px;background:#007bff;color:white;border:none;border-radius:8px;cursor:pointer;}
+    body{font-family:Arial,sans-serif;background:#f4f6f9;padding:20px;text-align:center;margin:0;}
+    .container{max-width:900px;margin:40px auto;background:white;padding:40px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.1);}
+    #drop-area{background:#f0f8ff;border:4px dashed #007bff;padding:80px;border-radius:16px;cursor:pointer;transition:0.3s;font-size:18px;}
+    #drop-area.dragover{background:#e1f3ff;border-color:#0056b3;transform:scale(1.02);}
+    #preview{margin:30px auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:15px;}
+    img{max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);}
+    button{margin-top:20px;padding:15px 40px;font-size:18px;background:#007bff;color:white;border:none;border-radius:12px;cursor:pointer;transition:0.3s;}
+    button:hover{background:#0056b3;}
     button:disabled{background:#999;cursor:not-allowed;}
+    h1{color:#007bff;}
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Image to PDF Converter</h1>
-    <p>Drop your images here (PNG/JPG) → instantly get a PDF</p>
+    <h1>Image → PDF Converter</h1>
+    <p>Drop images here or click to upload<br><small>Supports PNG, JPG, JPEG • Multiple files = multi-page PDF</small></p>
     
     <div id="drop-area">
-      <p>Drag & drop images here<br>or click to select</p>
-      <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
+      <p>📁 Drop your images here<br>or click to select files</p>
+      <input type="file" id="fileElem" multiple accept="image/*" style="display:none">
     </div>
     
     <div id="preview"></div>
     
-    <button id="download" disabled>Download PDF</button>
+    <button id="downloadBtn" disabled>⬇️ Download PDF</button>
   </div>
 
-  <script>
-    const { jsPDF } = window.jspdf;
-    const dropArea = document.getElementById('drop-area');
-    const fileInput = document.getElementById('file-input');
-    const preview = document.getElementById('preview');
-    const downloadBtn = document.getElementById('download');
-    let files = [];
+<script>
+  const { jsPDF } = window.jspdf;
+  const dropArea = document.getElementById('drop-area');
+  const fileElem = document.getElementById('fileElem');
+  const preview = document.getElementById('preview');
+  const downloadBtn = document.getElementById('downloadBtn');
+  let imageFiles = [];
 
-    ['dragover', 'dragenter'].forEach(e => dropArea.addEventListener(e, () => dropArea.classList.add('dragover')));
-    ['dragleave', 'dragend', 'drop'].forEach(e => dropArea.addEventListener(e, () => dropArea.classList.remove('dragover')));
+  // Click to open file picker
+  dropArea.addEventListener('click', () => fileElem.click());
 
-    dropArea.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleFiles);
-    dropArea.addEventListener('drop', e => {
+  // Drag & drop visual feedback
+  ['dragenter', 'dragover'].forEach(event => {
+    dropArea.addEventListener(event, e => {
       e.preventDefault();
-      handleFiles(e.dataTransfer.files);
+      dropArea.classList.add('dragover');
     });
-
-    function handleFiles(fileList) {
-      files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-      renderPreview();
-      downloadBtn.disabled = files.length === 0;
-    }
-
-    function renderPreview() {
-      preview.innerHTML = '';
-      files.forEach((file, i) => {
-        const reader = new FileReader();
-        reader.onload = e => {
-          const img = document.createElement('img');
-          img.src = e.target.result;
-          preview.appendChild(img);
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    downloadBtn.addEventListener('click', () => {
-      const pdf = new jsPDF();
-      files.forEach((file, i) => {
-        const img = new Image();
-        img.onload = () => {
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          const imgWidth = img.width;
-          const imgHeight = img.height;
-          const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-          const width = imgWidth * ratio * 0.9;
-          const height = imgHeight * ratio * 0.9;
-
-          if (i > 0) pdf.addPage();
-          pdf.addImage(img.src, 'JPEG', (pageWidth-width)/2, (pageHeight-height)/2, width, height);
-          if (i === files.length - 1) pdf.save('converted.pdf');
-        };
-        img.src = URL.createObjectURL(file);
-      });
+  });
+  ['dragleave', 'dragend', 'drop'].forEach(event => {
+    dropArea.addEventListener(event, e => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
     });
-  </script>
+  });
+
+  // Handle dropped or selected files
+  dropArea.addEventListener('drop', handleDrop);
+  fileElem.addEventListener('change', () => handleFiles(fileElem.files));
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+  }
+
+  function handleFiles(files) {
+    const validFiles = [...files].filter(f => f.type.startsWith('image/'));
+    if (validFiles.length === 0) return alert("Please select image files only");
+    
+    imageFiles = validFiles;
+    showPreview();
+    downloadBtn.disabled = false;
+  }
+
+  function showPreview() {
+    preview.innerHTML = '';
+    imageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Generate & download PDF
+  downloadBtn.addEventListener('click', () => {
+    const pdf = new jsPDF();
+    let loaded = 0;
+
+    imageFiles.forEach((file, i) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+        if (i > 0) pdf.addPage();
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pdfWidth / img.width, pdfHeight / img.height);
+        const width = img.width * ratio * 0.9;
+        const height = img.height * ratio * 0.9;
+        
+        pdf.addImage(imgData, 'JPEG', (pdfWidth - width)/2, (pdfHeight - height)/2, width, height);
+
+        loaded++;
+        if (loaded === imageFiles.length) {
+          pdf.save('My-Converted-PDF.pdf');
+        }
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  });
+</script>
 </body>
 </html>
